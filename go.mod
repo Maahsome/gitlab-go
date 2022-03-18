@@ -1,4 +1,4 @@
-module gitlab.com/maahsome/gitlab-go
+module github.com/maahsome/gitlab-go
 
 go 1.17
 

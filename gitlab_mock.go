@@ -9,14 +9,11 @@ import (
 )
 
 type gitlabMock struct {
-	BaseUrl           string
-	ApiPath           string
-	RepoFeedPath      string
-	Token             string
-	FalkorRoot        string
-	GitRole           string
-	ProjectVisibility string
-	Client            mock.Mock
+	BaseUrl      string
+	ApiPath      string
+	RepoFeedPath string
+	Token        string
+	Client       mock.Mock
 }
 
 type RequestError struct {
@@ -30,15 +27,12 @@ func (r *RequestError) Error() string {
 }
 
 // NewGitlabMock - Mocking the gitlab interactions
-func NewGitlabMock(baseUrl, apiPath, token string, gitRole string, falkorRoot string, visibility string) GitlabClient {
+func NewGitlabMock(baseUrl, apiPath, token string) GitlabClient {
 
 	return &gitlabMock{
-		BaseUrl:           baseUrl,
-		ApiPath:           apiPath,
-		Token:             token,
-		GitRole:           gitRole,
-		FalkorRoot:        falkorRoot,
-		ProjectVisibility: visibility,
+		BaseUrl: baseUrl,
+		ApiPath: apiPath,
+		Token:   token,
 	}
 }
 
@@ -50,12 +44,6 @@ func (r *gitlabMock) GetProperty(property string) string {
 		return r.ApiPath
 	case "Token":
 		return r.Token
-	case "FalkorRoot":
-		return r.FalkorRoot
-	case "GitRole":
-		return r.GitRole
-	case "ProjectVisibility":
-		return r.ProjectVisibility
 	}
 	return ""
 }
@@ -71,15 +59,6 @@ func (r *gitlabMock) SetProperty(property string, value string) string {
 	case "Token":
 		r.Token = value
 		return r.Token
-	case "FalkorRoot":
-		r.FalkorRoot = value
-		return r.FalkorRoot
-	case "GitRole":
-		r.GitRole = value
-		return r.GitRole
-	case "ProjectVisibility":
-		r.ProjectVisibility = value
-		return r.ProjectVisibility
 	}
 	return ""
 }

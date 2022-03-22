@@ -145,6 +145,24 @@ func (gm *gitlabMock) GetGroupID(groupPath string) (int, error) {
 	return 46, nil
 }
 
+func (gm *gitlabMock) GetUsers(search string) (string, error) {
+
+	// TOOD: Add mock users return
+	return "", nil
+}
+
+func (gm *gitlabMock) GetGroupMembers(group int) (string, error) {
+
+	// TODO: Add mock group members return
+	return "", nil
+}
+
+func (gm *gitlabMock) AddGroupMember(groupID, userID, accessLevel int) (string, error) {
+
+	//TODO: Add mock return add user result
+	return "", nil
+}
+
 func (gm *gitlabMock) CreateProject(groupID int, projectPath string, visibility string) (Project, error) {
 	if visibility == "fail" {
 		return Project{}, &RequestError{

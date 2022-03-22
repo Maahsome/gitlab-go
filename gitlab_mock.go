@@ -75,6 +75,12 @@ func (gm *gitlabMock) Get(uri string) (string, error) {
 	return "some data", nil
 }
 
+func (gm *gitlabMock) Delete(uri string) (string, error) {
+
+	// TODO: Return deletion status
+	return "", nil
+}
+
 func (gm *gitlabMock) GetForcePushSetting(projectID int, protectedBranch string) (bool, error) {
 
 	if protectedBranch == "error" {

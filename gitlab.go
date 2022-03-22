@@ -14,6 +14,7 @@ type GitlabClient interface {
 	GetProperty(property string) string
 	SetProperty(property string, value string) string
 	Get(uri string) (string, error)
+	Delete(uri string) (string, error)
 	GetUsers(search string) (string, error)
 	GetGroupMembers(group int) (string, error)
 	AddGroupMember(groupID, userID, accessLevel int) (string, error)

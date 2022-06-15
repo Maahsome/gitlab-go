@@ -141,6 +141,18 @@ func (gm *gitlabMock) GetProjectMirrors(projectID int) (ProjectMirrors, error) {
 	return ProjectMirrors{}, nil
 }
 
+func (gm *gitlabMock) GetProjectMembers(project int) (string, error) {
+
+	// TODO: Add mock group members return
+	return "", nil
+}
+
+func (gm *gitlabMock) AddProjectMember(projectID, userID, accessLevel int) (string, error) {
+
+	//TODO: Add mock return add user result
+	return "", nil
+}
+
 func (gm *gitlabMock) GetGroupID(groupPath string) (int, error) {
 	if strings.Contains(groupPath, "error") {
 		return 0, &RequestError{

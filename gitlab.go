@@ -25,6 +25,8 @@ type GitlabClient interface {
 	GetForcePushSetting(projectID int, protectedBranch string) (bool, error)
 	GetProjectID(projectPath string) (int, error)
 	GetProject(projectID int) (Project, error)
+	GetProjectMembers(project int) (string, error)
+	AddProjectMember(projectID, userID, accessLevel int) (string, error)
 	DeleteProject(projectID int) error
 	GetProjectMirrors(projectID int) (ProjectMirrors, error)
 	GetGroupID(groupPath string) (int, error)
@@ -817,6 +819,7 @@ func (r *gitlabClient) GetGroupProjects(groupID int) (ProjectList, error) {
 
 }
 
+// https://docs.gitlab.com/ee/api/members.html#list-all-members-of-a-group-or-project
 func (r *gitlabClient) GetGroupMembers(group int) (string, error) {
 
 	nextPage := "1"
@@ -855,10 +858,74 @@ func (r *gitlabClient) GetGroupMembers(group int) (string, error) {
 // AddGroupMember
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/merge_requests.html#create-mr
+// https://docs.gitlab.com/ee/api/members.html#add-a-member-to-a-group-or-project
 func (r *gitlabClient) AddGroupMember(groupID, userID, accessLevel int) (string, error) {
 
 	uri := fmt.Sprintf("/groups/%d/members", groupID)
+	fetchUri := fmt.Sprintf("https://%s%s%s", r.BaseUrl, r.ApiPath, uri)
+	memberTemplate := `{
+			"user_id": "%d",
+			"access_level": "%d"
+			}`
+	body := fmt.Sprintf(memberTemplate, userID, accessLevel)
+	resp, resperr := r.Client.R().
+		SetHeader("PRIVATE-TOKEN", r.Token).
+		SetHeader("Content-Type", "application/json").
+		SetBody(body).
+		Post(fetchUri)
+
+	if resperr != nil {
+		logrus.WithError(resperr).Error("Oops")
+		return "", resperr
+	}
+
+	return string(resp.Body()[:]), nil
+
+}
+
+// https://docs.gitlab.com/ee/api/members.html#list-all-members-of-a-group-or-project
+func (r *gitlabClient) GetProjectMembers(project int) (string, error) {
+
+	nextPage := "1"
+	combinedResults := ""
+	uri := fmt.Sprintf("/projects/%d/members", project)
+	for {
+		// TODO: detect if there are no options passed in, ? verus & for page option
+		fetchUri := fmt.Sprintf("https://%s%s%s?page=%s", r.BaseUrl, r.ApiPath, uri, nextPage)
+		// logrus.Warn(fetchUri)
+		resp, resperr := r.Client.R().
+			SetHeader("PRIVATE-TOKEN", r.Token).
+			Get(fetchUri)
+
+		if resperr != nil {
+			logrus.WithError(resperr).Error("Oops")
+			return "", resperr
+		}
+
+		items := strings.TrimPrefix(string(resp.Body()[:]), "[")
+		items = strings.TrimSuffix(items, "]")
+		if combinedResults == "" {
+			combinedResults += items
+		} else {
+			combinedResults += fmt.Sprintf(", %s", items)
+		}
+		currentPage := resp.Header().Get("X-Page")
+		nextPage = resp.Header().Get("X-Next-Page")
+		totalPages := resp.Header().Get("X-Total-Pages")
+		if currentPage == totalPages {
+			break
+		}
+	}
+	return fmt.Sprintf("[%s]", combinedResults), nil
+}
+
+// AddProjectMember
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/members.html#add-a-member-to-a-group-or-project
+func (r *gitlabClient) AddProjectMember(projectID, userID, accessLevel int) (string, error) {
+
+	uri := fmt.Sprintf("/projects/%d/members", projectID)
 	fetchUri := fmt.Sprintf("https://%s%s%s", r.BaseUrl, r.ApiPath, uri)
 	memberTemplate := `{
 			"user_id": "%d",

@@ -40,6 +40,7 @@ type Group struct {
 	ParentID                       int         `json:"parent_id"`
 	LdapCn                         interface{} `json:"ldap_cn"`
 	LdapAccess                     interface{} `json:"ldap_access"`
+	MarkedForDeletionOn            interface{} `json:"marked_for_deletion_on"`
 }
 
 // ToJSON - Write the output as JSON

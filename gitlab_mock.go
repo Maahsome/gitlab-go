@@ -167,6 +167,16 @@ func (gm *gitlabMock) GetGroups(search string) (GroupList, error) {
 	return GroupList{}, nil
 }
 
+func (gm *gitlabMock) GetSubGroups(groupID int) (GroupList, error) {
+	// TODO: Add mock group list return
+	return GroupList{}, nil
+}
+
+func (gm *gitlabMock) GetGroupProjects(groupID int) (ProjectList, error) {
+	// TODO: Add mock group list return
+	return ProjectList{}, nil
+}
+
 func (gm *gitlabMock) GetGroupMembers(group int) (string, error) {
 
 	// TODO: Add mock group members return

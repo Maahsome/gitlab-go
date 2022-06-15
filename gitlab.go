@@ -18,6 +18,8 @@ type GitlabClient interface {
 	GetUsers(search string) (string, error)
 	GetGroup(groupID int) (Group, error)
 	GetGroups(search string) (GroupList, error)
+	GetSubGroups(groupID int) (GroupList, error)
+	GetGroupProjects(groupID int) (ProjectList, error)
 	GetGroupMembers(group int) (string, error)
 	AddGroupMember(groupID, userID, accessLevel int) (string, error)
 	GetForcePushSetting(projectID int, protectedBranch string) (bool, error)
@@ -718,6 +720,100 @@ func (r *gitlabClient) GetGroups(search string) (GroupList, error) {
 	}
 
 	return gl, nil
+
+}
+
+// GetSubGroups- returns a list of subgroups for a given group id
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/groups.html#list-a-groups-subgroups
+func (r *gitlabClient) GetSubGroups(groupID int) (GroupList, error) {
+
+	nextPage := "1"
+	combinedResults := ""
+	uri := fmt.Sprintf("/groups/%d/subgroups", groupID)
+	for {
+		fetchUri := fmt.Sprintf("https://%s%s%s?page=%s", r.BaseUrl, r.ApiPath, uri, nextPage)
+		// fmt.Printf("fetchUri: %s\n", fetchUri)
+		resp, resperr := r.Client.R().
+			SetHeader("PRIVATE-TOKEN", r.Token).
+			SetHeader("Content-Type", "application/json").
+			Get(fetchUri)
+
+		if resperr != nil {
+			logrus.WithError(resperr).Error("Oops")
+			return GroupList{}, resperr
+		}
+		items := strings.TrimPrefix(string(resp.Body()[:]), "[")
+		items = strings.TrimSuffix(items, "]")
+		if combinedResults == "" {
+			combinedResults += items
+		} else {
+			combinedResults += fmt.Sprintf(", %s", items)
+		}
+		currentPage := resp.Header().Get("X-Page")
+		nextPage = resp.Header().Get("X-Next-Page")
+		totalPages := resp.Header().Get("X-Total-Pages")
+		if currentPage == totalPages {
+			break
+		}
+	}
+	surroundArray := fmt.Sprintf("[%s]", combinedResults)
+	var gl GroupList
+	marshErr := json.Unmarshal([]byte(surroundArray), &gl)
+	if marshErr != nil {
+		logrus.Fatal("Cannot marshall Pipeline", marshErr)
+		return GroupList{}, marshErr
+	}
+
+	return gl, nil
+
+}
+
+// GetGroupProjects- returns a list of projects for a given group id
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/groups.html#list-a-groups-projects
+func (r *gitlabClient) GetGroupProjects(groupID int) (ProjectList, error) {
+
+	nextPage := "1"
+	combinedResults := ""
+	uri := fmt.Sprintf("/groups/%d/projects", groupID)
+	for {
+		fetchUri := fmt.Sprintf("https://%s%s%s?page=%s", r.BaseUrl, r.ApiPath, uri, nextPage)
+		// fmt.Printf("fetchUri: %s\n", fetchUri)
+		resp, resperr := r.Client.R().
+			SetHeader("PRIVATE-TOKEN", r.Token).
+			SetHeader("Content-Type", "application/json").
+			Get(fetchUri)
+
+		if resperr != nil {
+			logrus.WithError(resperr).Error("Oops")
+			return ProjectList{}, resperr
+		}
+		items := strings.TrimPrefix(string(resp.Body()[:]), "[")
+		items = strings.TrimSuffix(items, "]")
+		if combinedResults == "" {
+			combinedResults += items
+		} else {
+			combinedResults += fmt.Sprintf(", %s", items)
+		}
+		currentPage := resp.Header().Get("X-Page")
+		nextPage = resp.Header().Get("X-Next-Page")
+		totalPages := resp.Header().Get("X-Total-Pages")
+		if currentPage == totalPages {
+			break
+		}
+	}
+	surroundArray := fmt.Sprintf("[%s]", combinedResults)
+	var pl ProjectList
+	marshErr := json.Unmarshal([]byte(surroundArray), &pl)
+	if marshErr != nil {
+		logrus.Fatal("Cannot marshall Pipeline", marshErr)
+		return ProjectList{}, marshErr
+	}
+
+	return pl, nil
 
 }
 

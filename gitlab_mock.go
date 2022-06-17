@@ -265,3 +265,13 @@ func (gm *gitlabMock) CreateMergeRequest(projectID int, title string, sourceBran
 	}
 	return "", nil
 }
+
+func (gm *gitlabMock) GetPipelines(projectID int, user string) (Pipelines, error) {
+
+	return Pipelines{}, nil
+}
+
+func (gm *gitlabMock) GetPipeline(projectID int, pipelineID int) (Pipeline, error) {
+
+	return Pipeline{}, nil
+}

@@ -38,6 +38,7 @@ type GitlabClient interface {
 	CreateMergeRequest(projectID int, title string, sourceBranch string, targetBranch string) (string, error)
 	GetPipelines(projectID int, user string) (Pipelines, error)
 	GetPipeline(projectID int, pipelineID int) (Pipeline, error)
+	GetCicdVariables(projectdID int) (Variables, error)
 }
 
 type gitlabClient struct {
@@ -1028,5 +1029,91 @@ func (r *gitlabClient) GetPipeline(projectID int, pipelineID int) (Pipeline, err
 	}
 
 	return pipeline, nil
+
+}
+
+func getVariablesFrom(r *gitlabClient, id int, resource string) (Variables, error) {
+
+	uri := fmt.Sprintf("/%s/%d/variables", resource, id)
+	fetchUri := fmt.Sprintf("https://%s%s%s", r.BaseUrl, r.ApiPath, uri)
+	resp, resperr := r.Client.R().
+		SetHeader("PRIVATE-TOKEN", r.Token).
+		SetHeader("Content-Type", "application/json").
+		Get(fetchUri)
+
+	if resperr != nil {
+		logrus.WithError(resperr).Error("Oops")
+		return Variables{}, resperr
+	}
+
+	var variables Variables
+	marshErr := json.Unmarshal(resp.Body(), &variables)
+	if marshErr != nil {
+		logrus.Fatal("Cannot marshall Pipeline", marshErr)
+		return Variables{}, resperr
+	}
+
+	return variables, nil
+}
+
+// GetCicdVariables - Returns all CICD Variables for a ProjectID
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/project_level_variables.html
+// https://docs.gitlab.com/ee/api/group_level_variables.html
+func (r *gitlabClient) GetCicdVariables(projectID int) (Variables, error) {
+
+	// curl -Ls --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "https://git.alteryx.com/api/v4/projects/5844/variables" | jq .
+
+	// Fetch the ProjectID, extract .namespace.id (this is the immediate containing group)
+	// Fetch the GroupID, extract .parent_id until 'null'
+
+	uri := fmt.Sprintf("/projects/%d/variables", projectID)
+	fetchUri := fmt.Sprintf("https://%s%s%s", r.BaseUrl, r.ApiPath, uri)
+	resp, resperr := r.Client.R().
+		SetHeader("PRIVATE-TOKEN", r.Token).
+		SetHeader("Content-Type", "application/json").
+		Get(fetchUri)
+
+	if resperr != nil {
+		logrus.WithError(resperr).Error("Oops")
+		return Variables{}, resperr
+	}
+
+	var variables Variables
+	marshErr := json.Unmarshal(resp.Body(), &variables)
+	if marshErr != nil {
+		logrus.Fatal("Cannot marshall Pipeline", marshErr)
+		return Variables{}, resperr
+	}
+
+	projectInfo, perr := r.GetProject(projectID)
+	if perr != nil {
+		logrus.Error("Cannot marshall Pipeline", marshErr)
+		return variables, resperr
+	}
+
+	if projectInfo.Namespace.ID > 0 {
+		groupID := projectInfo.Namespace.ID
+		for {
+			parentVariables, verr := getVariablesFrom(r, groupID, "groups")
+			if verr != nil {
+				logrus.Error("Cannot marshall Pipeline", marshErr)
+				return variables, resperr
+			}
+			variables = append(variables, parentVariables...)
+			groupInfo, gerr := r.GetGroup(groupID)
+			if gerr != nil {
+				logrus.Error("Cannot marshall Pipeline", marshErr)
+				return variables, resperr
+			}
+			if groupInfo.ParentID == 0 {
+				break
+			}
+			groupID = groupInfo.ParentID
+		}
+	}
+
+	return variables, nil
 
 }

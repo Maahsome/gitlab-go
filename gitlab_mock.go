@@ -275,3 +275,8 @@ func (gm *gitlabMock) GetPipeline(projectID int, pipelineID int) (Pipeline, erro
 
 	return Pipeline{}, nil
 }
+
+func (gm *gitlabMock) GetCicdVariables(projectID int) (Variables, error) {
+
+	return Variables{}, nil
+}

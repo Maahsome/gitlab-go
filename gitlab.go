@@ -318,7 +318,7 @@ func (r *gitlabClient) CreateProject(groupID int, projectPath string, visibility
 		return Project{}, resperr
 	}
 
-	// logrus.Info(fmt.Sprintf("%s", string(resp.Body()[:])))
+	logrus.Info(fmt.Sprintf("%s", string(resp.Body()[:])))
 
 	var prj Project
 	marshErr := json.Unmarshal(resp.Body(), &prj)
@@ -1034,25 +1034,66 @@ func (r *gitlabClient) GetPipeline(projectID int, pipelineID int) (Pipeline, err
 
 func getVariablesFrom(r *gitlabClient, id int, resource string) (Variables, error) {
 
-	uri := fmt.Sprintf("/%s/%d/variables", resource, id)
-	fetchUri := fmt.Sprintf("https://%s%s%s", r.BaseUrl, r.ApiPath, uri)
-	resp, resperr := r.Client.R().
-		SetHeader("PRIVATE-TOKEN", r.Token).
-		SetHeader("Content-Type", "application/json").
-		Get(fetchUri)
+	nextPage := "1"
+	combinedResults := ""
 
-	if resperr != nil {
-		logrus.WithError(resperr).Error("Oops")
-		return Variables{}, resperr
+	for {
+		uri := fmt.Sprintf("/%s/%d/variables", resource, id)
+		fetchUri := fmt.Sprintf("https://%s%s%s?page=%s", r.BaseUrl, r.ApiPath, uri, nextPage)
+		resp, resperr := r.Client.R().
+			SetHeader("PRIVATE-TOKEN", r.Token).
+			SetHeader("Content-Type", "application/json").
+			Get(fetchUri)
+
+		if resperr != nil {
+			logrus.WithError(resperr).Error("Oops")
+			return Variables{}, resperr
+		}
+
+		items := strings.TrimPrefix(string(resp.Body()[:]), "[")
+		items = strings.TrimSuffix(items, "]")
+		if combinedResults == "" {
+			combinedResults += items
+		} else {
+			combinedResults += fmt.Sprintf(", %s", items)
+		}
+		currentPage := resp.Header().Get("X-Page")
+		nextPage = resp.Header().Get("X-Next-Page")
+		totalPages := resp.Header().Get("X-Total-Pages")
+		if currentPage == totalPages {
+			break
+		}
+
 	}
-
+	surroundArray := fmt.Sprintf("[%s]", combinedResults)
 	var variables Variables
-	marshErr := json.Unmarshal(resp.Body(), &variables)
+	marshErr := json.Unmarshal([]byte(surroundArray), &variables)
 	if marshErr != nil {
 		logrus.Fatal("Cannot marshall Pipeline", marshErr)
-		return Variables{}, resperr
+		return Variables{}, marshErr
 	}
 
+	if resource == "projects" {
+		projectInfo, perr := r.GetProject(id)
+		if perr != nil {
+			logrus.Error("Cannot marshall Pipeline", marshErr)
+			return variables, perr
+		}
+
+		for _, v := range variables {
+			v.Source = projectInfo.Path
+		}
+	}
+	if resource == "groups" {
+		groupInfo, gerr := r.GetGroup(id)
+		if gerr != nil {
+			logrus.Error("Cannot marshall Pipeline", marshErr)
+			return variables, gerr
+		}
+		for k := range variables {
+			variables[k].Source = groupInfo.Path
+		}
+	}
 	return variables, nil
 }
 
@@ -1090,7 +1131,11 @@ func (r *gitlabClient) GetCicdVariables(projectID int) (Variables, error) {
 	projectInfo, perr := r.GetProject(projectID)
 	if perr != nil {
 		logrus.Error("Cannot marshall Pipeline", marshErr)
-		return variables, resperr
+		return variables, perr
+	}
+
+	for k := range variables {
+		variables[k].Source = projectInfo.Path
 	}
 
 	if projectInfo.Namespace.ID > 0 {
@@ -1105,7 +1150,7 @@ func (r *gitlabClient) GetCicdVariables(projectID int) (Variables, error) {
 			groupInfo, gerr := r.GetGroup(groupID)
 			if gerr != nil {
 				logrus.Error("Cannot marshall Pipeline", marshErr)
-				return variables, resperr
+				return variables, gerr
 			}
 			if groupInfo.ParentID == 0 {
 				break

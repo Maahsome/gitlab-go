@@ -20,6 +20,7 @@ type Variable struct {
 	Protected        bool   `json:"protected"`
 	Value            string `json:"value"`
 	VariableType     string `json:"variable_type"`
+	Source           string `json:"source"`
 }
 
 // ToJSON - Write the output as JSON

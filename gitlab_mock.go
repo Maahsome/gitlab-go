@@ -286,7 +286,7 @@ func (gm *gitlabMock) GetCicdVariables(projectID int) (Variables, error) {
 	return Variables{}, nil
 }
 
-func (gm *gitlabMock) GetCicdVariablesFromGroup(groupID int) (Variables, error) {
+func (gm *gitlabMock) GetCicdVariablesFromGroup(groupID int, includeProjects bool) (Variables, error) {
 
 	return Variables{}, nil
 }

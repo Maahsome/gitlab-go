@@ -40,7 +40,7 @@ type GitlabClient interface {
 	GetPipelines(projectID int, user string) (Pipelines, error)
 	GetPipeline(projectID int, pipelineID int) (Pipeline, error)
 	GetCicdVariables(projectdID int) (Variables, error)
-	GetCicdVariablesFromGroup(groupID int) (Variables, error)
+	GetCicdVariablesFromGroup(groupID int, includeProjects bool) (Variables, error)
 }
 
 type gitlabClient struct {
@@ -1121,11 +1121,13 @@ func getVariablesFrom(r *gitlabClient, id int, resource string) (Variables, erro
 			logrus.Error("Cannot marshall Pipeline", marshErr)
 			return variables, perr
 		}
-
-		for _, v := range variables {
-			v.Source = projectInfo.Path
+		// for _, v := range variables {
+		for k := range variables {
+			// v.Source = projectInfo.Path
+			variables[k].Source = projectInfo.PathWithNamespace
 		}
 	}
+
 	if resource == "groups" {
 		groupInfo, gerr := r.GetGroup(id)
 		if gerr != nil {
@@ -1133,7 +1135,8 @@ func getVariablesFrom(r *gitlabClient, id int, resource string) (Variables, erro
 			return variables, gerr
 		}
 		for k := range variables {
-			variables[k].Source = groupInfo.Path
+			// variables[k].Source = groupInfo.Path
+			variables[k].Source = groupInfo.FullPath
 		}
 	}
 	return variables, nil
@@ -1177,7 +1180,7 @@ func (r *gitlabClient) GetCicdVariables(projectID int) (Variables, error) {
 	}
 
 	for k := range variables {
-		variables[k].Source = projectInfo.Path
+		variables[k].Source = projectInfo.PathWithNamespace
 	}
 
 	if projectInfo.Namespace.ID > 0 {
@@ -1210,7 +1213,7 @@ func (r *gitlabClient) GetCicdVariables(projectID int) (Variables, error) {
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/project_level_variables.html
 // https://docs.gitlab.com/ee/api/group_level_variables.html
-func (r *gitlabClient) GetCicdVariablesFromGroup(groupID int) (Variables, error) {
+func (r *gitlabClient) GetCicdVariablesFromGroup(groupID int, includeProjects bool) (Variables, error) {
 
 	// curl -Ls --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "https://git.alteryx.com/api/v4/projects/5844/variables" | jq .
 
@@ -1225,20 +1228,21 @@ func (r *gitlabClient) GetCicdVariablesFromGroup(groupID int) (Variables, error)
 	}
 	variables = append(variables, topVariables...)
 
-	topProjects, perr := r.GetGroupProjects(groupID)
-	if perr != nil {
-		logrus.Error("Failed to get top level group Projects", perr)
-		return variables, perr
-	}
-	for _, v := range topProjects {
-		projVariables, verr := getVariablesFrom(r, v.ID, "projects")
-		if verr != nil {
-			logrus.Error("Failed to get variables from topProjects ", verr)
-			return variables, verr
+	if includeProjects {
+		topProjects, perr := r.GetGroupProjects(groupID)
+		if perr != nil {
+			logrus.Error("Failed to get top level group Projects", perr)
+			return variables, perr
 		}
-		variables = append(variables, projVariables...)
+		for _, v := range topProjects {
+			projVariables, verr := getVariablesFrom(r, v.ID, "projects")
+			if verr != nil {
+				logrus.Error("Failed to get variables from topProjects ", verr)
+				return variables, verr
+			}
+			variables = append(variables, projVariables...)
+		}
 	}
-
 	subGroups, gerr := r.GetDescendantGroups(groupID)
 	if gerr != nil {
 		logrus.Error("Failed to get Top Project SubGroups", gerr)
@@ -1251,18 +1255,20 @@ func (r *gitlabClient) GetCicdVariablesFromGroup(groupID int) (Variables, error)
 			return variables, verr
 		}
 		variables = append(variables, grpVariables...)
-		grpProjects, perr := r.GetGroupProjects(v.ID)
-		if perr != nil {
-			logrus.Error("Failed to get Projects for SubGroup ", perr)
-			return variables, perr
-		}
-		for _, p := range grpProjects {
-			projVariables, verr := getVariablesFrom(r, p.ID, "projects")
-			if verr != nil {
-				logrus.Error("Failed to get variables from topProjects ", verr)
-				return variables, verr
+		if includeProjects {
+			grpProjects, perr := r.GetGroupProjects(v.ID)
+			if perr != nil {
+				logrus.Error("Failed to get Projects for SubGroup ", perr)
+				return variables, perr
 			}
-			variables = append(variables, projVariables...)
+			for _, p := range grpProjects {
+				projVariables, verr := getVariablesFrom(r, p.ID, "projects")
+				if verr != nil {
+					logrus.Error("Failed to get variables from topProjects ", verr)
+					return variables, verr
+				}
+				variables = append(variables, projVariables...)
+			}
 		}
 
 	}

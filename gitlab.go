@@ -19,6 +19,7 @@ type GitlabClient interface {
 	GetGroup(groupID int) (Group, error)
 	GetGroups(search string) (GroupList, error)
 	GetSubGroups(groupID int) (GroupList, error)
+	GetDescendantGroups(groupID int) (GroupList, error)
 	GetGroupProjects(groupID int) (ProjectList, error)
 	GetGroupMembers(group int) (string, error)
 	AddGroupMember(groupID, userID, accessLevel int) (string, error)
@@ -39,6 +40,7 @@ type GitlabClient interface {
 	GetPipelines(projectID int, user string) (Pipelines, error)
 	GetPipeline(projectID int, pipelineID int) (Pipeline, error)
 	GetCicdVariables(projectdID int) (Variables, error)
+	GetCicdVariablesFromGroup(groupID int) (Variables, error)
 }
 
 type gitlabClient struct {
@@ -250,7 +252,6 @@ func (r *gitlabClient) GetProject(projectID int) (Project, error) {
 // GetProjectMirrors - returns the full project based on the project ID
 //
 // GitLab API docs:
-//
 func (r *gitlabClient) GetProjectMirrors(projectID int) (ProjectMirrors, error) {
 
 	// curl -Ls "https://git.alteryx.com/api/v4/projects/${PR_ID}/remote_mirrors" \
@@ -334,7 +335,6 @@ func (r *gitlabClient) CreateProject(groupID int, projectPath string, visibility
 // ProtectBranch
 //
 // GitLab API docs:
-//
 func (r *gitlabClient) ProtectBranch(projectID int, protectedBranch string) (bool, error) {
 
 	// curl -Ls --request POST "https://gitlab.com/api/v4/projects/${PR_ID}/protected_branches" \
@@ -413,7 +413,6 @@ func (r *gitlabClient) ProtectBranch(projectID int, protectedBranch string) (boo
 // CreateProjectMirror creates a new mirror for a gitlab project (git repository)
 //
 // GitLab API docs:
-//
 func (r *gitlabClient) CreateProjectMirror(projectID int, mirrorURL string) (ProjectMirror, error) {
 
 	// curl -Ls --request POST "https://git.alteryx.com/api/v4/projects/${PR_ID}/remote_mirrors" \
@@ -462,7 +461,6 @@ func (r *gitlabClient) CreateProjectMirror(projectID int, mirrorURL string) (Pro
 // UpdateProjectMirror update a project mirror settings for a gitlab project (git repository)
 //
 // GitLab API docs:
-//
 func (r *gitlabClient) UpdateProjectMirror(projectID int, mirrorID int) (ProjectMirror, error) {
 
 	// curl -Ls --request PUT https://git.alteryx.com/api/v4/projects/${PR_ID}/remote_mirrors/${m_id} \
@@ -534,7 +532,6 @@ func (r *gitlabClient) DeleteProject(projectID int) error {
 // DeleteProtectedBranch - delete the specified branch from the protected list
 //
 // GitLab API docs:
-//
 func (r *gitlabClient) DeleteProtectedBranch(projectID int, protectedBranch string) (bool, error) {
 
 	// curl -Ls --request DELETE "https://gitlab.com/api/v4/projects/${PR_ID}/protected_branches/master" \
@@ -654,7 +651,6 @@ func (r *gitlabClient) GetUsers(search string) (string, error) {
 // GetGroup - returns the full group based on the group ID
 //
 // GitLab API docs:
-//
 func (r *gitlabClient) GetGroup(groupID int) (Group, error) {
 
 	uri := fmt.Sprintf("/groups/%d", groupID)
@@ -773,6 +769,52 @@ func (r *gitlabClient) GetSubGroups(groupID int) (GroupList, error) {
 
 	return gl, nil
 
+}
+
+// GetDescendantGroups - returns a list of descendant_groups for a groupID
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/groups.html#list-a-groups-descendant-groups
+func (r *gitlabClient) GetDescendantGroups(groupID int) (GroupList, error) {
+
+	nextPage := "1"
+	combinedResults := ""
+	uri := fmt.Sprintf("/groups/%d/descendant_groups", groupID)
+	for {
+		fetchUri := fmt.Sprintf("https://%s%s%s?page=%s", r.BaseUrl, r.ApiPath, uri, nextPage)
+		// fmt.Printf("fetchUri: %s\n", fetchUri)
+		resp, resperr := r.Client.R().
+			SetHeader("PRIVATE-TOKEN", r.Token).
+			SetHeader("Content-Type", "application/json").
+			Get(fetchUri)
+
+		if resperr != nil {
+			logrus.WithError(resperr).Error("Oops")
+			return GroupList{}, resperr
+		}
+		items := strings.TrimPrefix(string(resp.Body()[:]), "[")
+		items = strings.TrimSuffix(items, "]")
+		if combinedResults == "" {
+			combinedResults += items
+		} else {
+			combinedResults += fmt.Sprintf(", %s", items)
+		}
+		currentPage := resp.Header().Get("X-Page")
+		nextPage = resp.Header().Get("X-Next-Page")
+		totalPages := resp.Header().Get("X-Total-Pages")
+		if currentPage == totalPages {
+			break
+		}
+	}
+	surroundArray := fmt.Sprintf("[%s]", combinedResults)
+	var gl GroupList
+	marshErr := json.Unmarshal([]byte(surroundArray), &gl)
+	if marshErr != nil {
+		logrus.Fatal("Cannot marshall Pipeline", marshErr)
+		return GroupList{}, marshErr
+	}
+
+	return gl, nil
 }
 
 // GetGroupProjects- returns a list of projects for a given group id
@@ -1157,6 +1199,72 @@ func (r *gitlabClient) GetCicdVariables(projectID int) (Variables, error) {
 			}
 			groupID = groupInfo.ParentID
 		}
+	}
+
+	return variables, nil
+
+}
+
+// GetCicdVariablesFromGroup - Returns all CICD Variables for a ProjectID
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/project_level_variables.html
+// https://docs.gitlab.com/ee/api/group_level_variables.html
+func (r *gitlabClient) GetCicdVariablesFromGroup(groupID int) (Variables, error) {
+
+	// curl -Ls --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "https://git.alteryx.com/api/v4/projects/5844/variables" | jq .
+
+	// Fetch the ProjectID, extract .namespace.id (this is the immediate containing group)
+	// Fetch the GroupID, extract .parent_id until 'null'
+
+	var variables Variables
+	topVariables, verr := getVariablesFrom(r, groupID, "groups")
+	if verr != nil {
+		logrus.Error("Cannot marshall Pipeline", verr)
+		return variables, verr
+	}
+	variables = append(variables, topVariables...)
+
+	topProjects, perr := r.GetGroupProjects(groupID)
+	if perr != nil {
+		logrus.Error("Failed to get top level group Projects", perr)
+		return variables, perr
+	}
+	for _, v := range topProjects {
+		projVariables, verr := getVariablesFrom(r, v.ID, "projects")
+		if verr != nil {
+			logrus.Error("Failed to get variables from topProjects ", verr)
+			return variables, verr
+		}
+		variables = append(variables, projVariables...)
+	}
+
+	subGroups, gerr := r.GetDescendantGroups(groupID)
+	if gerr != nil {
+		logrus.Error("Failed to get Top Project SubGroups", gerr)
+		return variables, gerr
+	}
+	for _, v := range subGroups {
+		grpVariables, verr := getVariablesFrom(r, v.ID, "groups")
+		if verr != nil {
+			logrus.Error("Failed to get variables from subGroups ", verr)
+			return variables, verr
+		}
+		variables = append(variables, grpVariables...)
+		grpProjects, perr := r.GetGroupProjects(v.ID)
+		if perr != nil {
+			logrus.Error("Failed to get Projects for SubGroup ", perr)
+			return variables, perr
+		}
+		for _, p := range grpProjects {
+			projVariables, verr := getVariablesFrom(r, p.ID, "projects")
+			if verr != nil {
+				logrus.Error("Failed to get variables from topProjects ", verr)
+				return variables, verr
+			}
+			variables = append(variables, projVariables...)
+		}
+
 	}
 
 	return variables, nil

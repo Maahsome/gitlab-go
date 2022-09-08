@@ -1,2 +1,3 @@
 # gitlab-go
-Package for gitlab API 
+
+Package for gitlab API

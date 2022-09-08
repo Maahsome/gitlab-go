@@ -184,6 +184,11 @@ func (gm *gitlabMock) GetSubGroups(groupID int) (GroupList, error) {
 	return GroupList{}, nil
 }
 
+func (gm *gitlabMock) GetDescendantGroups(groupID int) (GroupList, error) {
+	// TODO: Add mock group list return
+	return GroupList{}, nil
+}
+
 func (gm *gitlabMock) GetGroupProjects(groupID int) (ProjectList, error) {
 	// TODO: Add mock group list return
 	return ProjectList{}, nil
@@ -277,6 +282,11 @@ func (gm *gitlabMock) GetPipeline(projectID int, pipelineID int) (Pipeline, erro
 }
 
 func (gm *gitlabMock) GetCicdVariables(projectID int) (Variables, error) {
+
+	return Variables{}, nil
+}
+
+func (gm *gitlabMock) GetCicdVariablesFromGroup(groupID int) (Variables, error) {
 
 	return Variables{}, nil
 }

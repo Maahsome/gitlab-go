@@ -11,6 +11,7 @@ type ProjectList []Project
 type Project struct {
 	ID                int       `json:"id"`
 	Name              string    `json:"name"`
+	Description       string    `json:"description"`
 	NameWithNamespace string    `json:"name_with_namespace"`
 	Path              string    `json:"path"`
 	PathWithNamespace string    `json:"path_with_namespace"`

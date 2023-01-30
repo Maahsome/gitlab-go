@@ -37,6 +37,7 @@ type GitlabClient interface {
 	CreateMergeRequest(projectID int, title string, sourceBranch string, targetBranch string) (string, error)
 	GetPipelines(projectID int, user string) (Pipelines, error)
 	GetPipeline(projectID int, pipelineID int) (Pipeline, error)
+	GetVariableFrom(id int, resource string, variable string) (string, error)
 	GetCicdVariables(projectdID int) (Variables, error)
 	GetCicdVariablesFromGroup(groupID int, includeProjects bool) (Variables, error)
 }

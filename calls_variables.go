@@ -8,6 +8,23 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+func (r *gitlabClient) GetVariableFrom(id int, resource string, variable string) (string, error) {
+
+	uri := fmt.Sprintf("/%s/%d/variables/%s", resource, id, variable)
+	fetchUri := fmt.Sprintf("https://%s%s%s", r.BaseUrl, r.ApiPath, uri)
+	resp, resperr := r.Client.R().
+		SetHeader("PRIVATE-TOKEN", r.Token).
+		SetHeader("Content-Type", "application/json").
+		Get(fetchUri)
+
+	if resperr != nil {
+		logrus.WithError(resperr).Error("Oops")
+		return "", resperr
+	}
+
+	return string(resp.Body()[:]), nil
+}
+
 func getVariablesFrom(r *gitlabClient, id int, resource string) (Variables, error) {
 
 	nextPage := "1"

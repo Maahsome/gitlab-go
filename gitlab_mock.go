@@ -271,7 +271,7 @@ func (gm *gitlabMock) CreateMergeRequest(projectID int, title string, sourceBran
 	return "", nil
 }
 
-func (gm *gitlabMock) GetPipelines(projectID int, user string) (Pipelines, error) {
+func (gm *gitlabMock) GetPipelines(projectID int, user string, limit int) (Pipelines, error) {
 
 	return Pipelines{}, nil
 }

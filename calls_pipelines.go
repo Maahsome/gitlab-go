@@ -12,42 +12,45 @@ import (
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/pipelines.html#list-project-pipelines
-func (r *gitlabClient) GetPipelines(projectID int, user string) (Pipelines, error) {
+func (r *gitlabClient) GetPipelines(projectID int, user string, limit int) (Pipelines, error) {
 
 	nextPage := "1"
 	combinedResults := ""
 	uri := ""
 	if len(user) > 0 {
-		uri = fmt.Sprintf("/projects/%d/pipelines?per_page=100&username=%s", projectID, user)
+		uri = fmt.Sprintf("/projects/%d/pipelines?per_page=%d&username=%s", projectID, limit, user)
 	} else {
-		uri = fmt.Sprintf("/projects/%d/pipelines?per_page=100", projectID)
+		uri = fmt.Sprintf("/projects/%d/pipelines?per_page=%d", projectID, limit)
 	}
-	for {
-		fetchUri := fmt.Sprintf("https://%s%s%s&page=%s", r.BaseUrl, r.ApiPath, uri, nextPage)
-		// fmt.Printf("fetchUri: %s\n", fetchUri)
-		resp, resperr := r.Client.R().
-			SetHeader("PRIVATE-TOKEN", r.Token).
-			SetHeader("Content-Type", "application/json").
-			Get(fetchUri)
+	// for {
+	fetchUri := fmt.Sprintf("https://%s%s%s&page=%s", r.BaseUrl, r.ApiPath, uri, nextPage)
+	// fmt.Printf("fetchUri: %s\n", fetchUri)
+	resp, resperr := r.Client.R().
+		SetHeader("PRIVATE-TOKEN", r.Token).
+		SetHeader("Content-Type", "application/json").
+		Get(fetchUri)
 
-		if resperr != nil {
-			logrus.WithError(resperr).Error("Oops")
-			return Pipelines{}, resperr
-		}
-		items := strings.TrimPrefix(string(resp.Body()[:]), "[")
-		items = strings.TrimSuffix(items, "]")
-		if combinedResults == "" {
-			combinedResults += items
-		} else {
-			combinedResults += fmt.Sprintf(", %s", items)
-		}
-		currentPage := resp.Header().Get("X-Page")
-		nextPage = resp.Header().Get("X-Next-Page")
-		totalPages := resp.Header().Get("X-Total-Pages")
-		if currentPage == totalPages {
-			break
-		}
+	if resperr != nil {
+		logrus.WithError(resperr).Error("Oops")
+		return Pipelines{}, resperr
 	}
+	items := strings.TrimPrefix(string(resp.Body()[:]), "[")
+	items = strings.TrimSuffix(items, "]")
+	if combinedResults == "" {
+		combinedResults += items
+	} else {
+		combinedResults += fmt.Sprintf(", %s", items)
+	}
+	// TODO: add logic to request MORE than the normal limit, and re-enable
+	//       the nextPage feature
+	// currentPage := resp.Header().Get("X-Page")
+	// nextPage = resp.Header().Get("X-Next-Page")
+	// totalPages := resp.Header().Get("X-Total-Pages")
+	// break
+	// if currentPage == totalPages {
+	// 	break
+	// }
+	// }
 	surroundArray := fmt.Sprintf("[%s]", combinedResults)
 	var pipelines Pipelines
 	marshErr := json.Unmarshal([]byte(surroundArray), &pipelines)

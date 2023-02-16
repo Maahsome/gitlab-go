@@ -35,7 +35,7 @@ type GitlabClient interface {
 	CreateProjectMirror(projectID int, mirrorURL string) (ProjectMirror, error)
 	UpdateProjectMirror(projectID int, mirrorID int) (ProjectMirror, error)
 	CreateMergeRequest(projectID int, title string, sourceBranch string, targetBranch string) (string, error)
-	GetPipelines(projectID int, user string) (Pipelines, error)
+	GetPipelines(projectID int, user string, limit int) (Pipelines, error)
 	GetPipeline(projectID int, pipelineID int) (Pipeline, error)
 	GetVariableFrom(id int, resource string, variable string) (string, error)
 	GetCicdVariables(projectdID int) (Variables, error)

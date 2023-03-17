@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/maahsome/gron"
+	"github.com/muesli/termenv"
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
@@ -79,6 +81,7 @@ func (gr *GroupList) ToYAML() string {
 }
 
 func (gr *GroupList) ToTEXT(noHeaders bool, user string) string {
+	term := termenv.NewOutput(os.Stdout)
 	buf, row := new(bytes.Buffer), make([]string, 0)
 
 	// ************************** TableWriter ******************************
@@ -103,9 +106,9 @@ func (gr *GroupList) ToTEXT(noHeaders bool, user string) string {
 	for _, v := range *gr {
 		var cmdLine string
 		if len(user) > 0 {
-			cmdLine = fmt.Sprintf("<bash:gitlab-tool get project -g %d -u %s>", v.ID, user)
+			cmdLine = term.Hyperlink(fmt.Sprintf("<bash:gitlab-tool get project -g %d -u %s>", v.ID, user), fmt.Sprintf("%d", v.ID))
 		} else {
-			cmdLine = fmt.Sprintf("<bash:gitlab-tool get project -g %d>", v.ID)
+			cmdLine = term.Hyperlink(fmt.Sprintf("<bash:gitlab-tool get project -g %d>", v.ID), fmt.Sprintf("%d", v.ID))
 		}
 		row = []string{
 			fmt.Sprintf("%d", v.ID),
@@ -157,6 +160,7 @@ func (gr *Group) ToYAML() string {
 }
 
 func (gr *Group) ToTEXT(noHeaders bool, user string) string {
+	term := termenv.NewOutput(os.Stdout)
 	buf, row := new(bytes.Buffer), make([]string, 0)
 
 	// ************************** TableWriter ******************************
@@ -180,9 +184,9 @@ func (gr *Group) ToTEXT(noHeaders bool, user string) string {
 	// for _, v := range *gr {
 	var cmdLine string
 	if len(user) > 0 {
-		cmdLine = fmt.Sprintf("<bash:gitlab-tool get project -g %d -u %s>", gr.ID, user)
+		cmdLine = term.Hyperlink(fmt.Sprintf("<bash:gitlab-tool get project -g %d -u %s>", gr.ID, user), fmt.Sprintf("%d", gr.ID))
 	} else {
-		cmdLine = fmt.Sprintf("<bash:gitlab-tool get project -g %d>", gr.ID)
+		cmdLine = term.Hyperlink(fmt.Sprintf("<bash:gitlab-tool get project -g %d>", gr.ID), fmt.Sprintf("%d", gr.ID))
 	}
 	row = []string{
 		fmt.Sprintf("%d", gr.ID),

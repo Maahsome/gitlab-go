@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/maahsome/gron"
+	"github.com/muesli/termenv"
 	"github.com/olekukonko/tablewriter"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
@@ -63,6 +65,7 @@ func (pl *Pipelines) ToYAML() string {
 }
 
 func (pl *Pipelines) ToTEXT(noHeaders bool) string {
+	term := termenv.NewOutput(os.Stdout)
 	buf, _ := new(bytes.Buffer), make([]string, 0)
 
 	// ************************** TableWriter ******************************
@@ -89,7 +92,7 @@ func (pl *Pipelines) ToTEXT(noHeaders bool) string {
 			fmt.Sprintf("%d", v.ID),
 			fmt.Sprintf("%d", v.ProjectID),
 			v.Status,
-			fmt.Sprintf("<bash:gitlab-tool get jobs -p %d -l %d>", v.ProjectID, v.ID),
+			term.Hyperlink(fmt.Sprintf("<bash:gitlab-tool get jobs -p %d -l %d>", v.ProjectID, v.ID), fmt.Sprintf("%d-%d", v.ProjectID, v.ID)),
 		}
 		table.Append(row)
 	}

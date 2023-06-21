@@ -34,7 +34,7 @@ type GitlabClient interface {
 	ProtectBranch(projectID int, protectedBranch string) (bool, error)
 	CreateProjectMirror(projectID int, mirrorURL string) (ProjectMirror, error)
 	UpdateProjectMirror(projectID int, mirrorID int) (ProjectMirror, error)
-	CreateMergeRequest(projectID int, title string, sourceBranch string, targetBranch string) (string, error)
+	CreateMergeRequest(projectID int, title string, sourceBranch string, targetBranch string, description string, squashOnMerge bool, removeSourceBranch bool) (string, error)
 	GetPipelines(projectID int, user string, limit int) (Pipelines, error)
 	GetPipeline(projectID int, pipelineID int) (Pipeline, error)
 	GetVariableFrom(id int, resource string, variable string) (string, error)

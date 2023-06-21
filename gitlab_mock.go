@@ -261,7 +261,7 @@ func (gm *gitlabMock) UpdateProjectMirror(projectID int, mirrorID int) (ProjectM
 	return ProjectMirror{}, nil
 }
 
-func (gm *gitlabMock) CreateMergeRequest(projectID int, title string, sourceBranch string, targetBranch string) (string, error) {
+func (gm *gitlabMock) CreateMergeRequest(projectID int, title string, sourceBranch string, targetBranch string, description string, squashOnMerge bool, removeSourceBranch bool) (string, error) {
 	if projectID == 0 {
 		return "", &RequestError{
 			StatusCode: 404,

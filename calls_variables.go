@@ -227,3 +227,26 @@ func (r *gitlabClient) GetCicdVariablesFromGroup(groupID int, includeProjects bo
 	return variables, nil
 
 }
+
+func (r *gitlabClient) UpdateVariableFrom(id int, resource string, variable string, value string) (string, error) {
+
+	escapedValue := strings.ReplaceAll(value, "\"", "\\\"")
+	uri := fmt.Sprintf("/%s/%d/variables/%s", resource, id, variable)
+	fetchUri := fmt.Sprintf("https://%s%s%s", r.BaseUrl, r.ApiPath, uri)
+	variableTemplate := `{
+			"value": "%s"
+			}`
+	body := fmt.Sprintf(variableTemplate, escapedValue)
+	resp, resperr := r.Client.R().
+		SetHeader("PRIVATE-TOKEN", r.Token).
+		SetHeader("Content-Type", "application/json").
+		SetBody(body).
+		Put(fetchUri)
+
+	if resperr != nil {
+		logrus.WithError(resperr).Error("Oops")
+		return "", resperr
+	}
+
+	return string(resp.Body()[:]), nil
+}

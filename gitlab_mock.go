@@ -294,3 +294,8 @@ func (gm *gitlabMock) GetCicdVariablesFromGroup(groupID int, includeProjects boo
 
 	return Variables{}, nil
 }
+
+func (gm *gitlabMock) UpdateVariableFrom(id int, resource string, variable string, value string) (string, error) {
+
+	return "", nil
+}

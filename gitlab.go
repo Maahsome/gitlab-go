@@ -40,6 +40,7 @@ type GitlabClient interface {
 	GetVariableFrom(id int, resource string, variable string) (string, error)
 	GetCicdVariables(projectdID int) (Variables, error)
 	GetCicdVariablesFromGroup(groupID int, includeProjects bool) (Variables, error)
+	UpdateVariableFrom(id int, resource string, variable string, value string) (string, error)
 }
 
 type gitlabClient struct {

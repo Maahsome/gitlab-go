@@ -41,6 +41,7 @@ type GitlabClient interface {
 	GetCicdVariables(projectdID int) (Variables, error)
 	GetCicdVariablesFromGroup(groupID int, includeProjects bool) (Variables, error)
 	UpdateVariableFrom(id int, resource string, variable string, value string) (string, error)
+	GetRepositoryFile(projectSlug string, fileSlug string, ref string) ([]byte, error)
 }
 
 type gitlabClient struct {

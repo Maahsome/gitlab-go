@@ -299,3 +299,7 @@ func (gm *gitlabMock) UpdateVariableFrom(id int, resource string, variable strin
 
 	return "", nil
 }
+
+func (gm *gitlabMock) GetRepositoryFile(projectSlug string, fileSlug string, ref string) ([]byte, error) {
+	return []byte{}, nil
+}

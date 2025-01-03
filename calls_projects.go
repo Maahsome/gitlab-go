@@ -31,7 +31,7 @@ func (r *gitlabClient) GetProjectID(projectPath string) (int, error) {
 	var pi ProjectInfo
 	marshErr := json.Unmarshal(resp.Body(), &pi)
 	if marshErr != nil {
-		logrus.Fatal("Cannot marshall Pipeline", marshErr)
+		return 0, errors.New(fmt.Sprintf("Error unmarshalling Project Response, %e", marshErr))
 	}
 
 	return pi.ID, nil
